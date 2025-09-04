@@ -29,6 +29,15 @@ class RecordService {
     
     public func startRecording(note: Note) async throws {
         
+        // Проверка на текущую запись
+        guard sessionFolder == nil else {
+            throw ServiceError.alreadyRunning
+        }
+        
+        // Проверка доступов
+        try await ensureMicrophonePermission()
+        // Тоже самое нужно сделать для системного аудио
+        
         do {
             // Проверяем разрешение на запись
             try await micStartRecord()
