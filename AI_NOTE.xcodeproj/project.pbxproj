@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B950ACC82E69AB8600DB78EF /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = B950ACC72E69AB8600DB78EF /* WhisperKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B92E25CB2E683941003E88A4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B950ACC82E69AB8600DB78EF /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = AI_NOTE;
 			packageProductDependencies = (
+				B950ACC72E69AB8600DB78EF /* WhisperKit */,
 			);
 			productName = AI_NOTE;
 			productReference = B92E25B72E683940003E88A4 /* AI_NOTE.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = B92E25AE2E683940003E88A4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B950ACC62E69AB8600DB78EF /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B92E25B82E683940003E88A4 /* Products */;
 			projectDirPath = "";
@@ -399,6 +408,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Запись микрофона";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -424,6 +434,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Запись микрофона";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -541,6 +552,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B950ACC62E69AB8600DB78EF /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.13.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B950ACC72E69AB8600DB78EF /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B950ACC62E69AB8600DB78EF /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B92E25AF2E683940003E88A4 /* Project object */;
 }

@@ -5,4 +5,9 @@
 //  Created by Радмир on 03.09.2025.
 //
 
-import Foundation
+import SwiftUI
+import CoreData
+
+class TolbarViewModel: ObservableObject {
+        
+}

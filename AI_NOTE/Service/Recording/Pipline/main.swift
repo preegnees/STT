@@ -16,6 +16,7 @@ final class Runtime {
 struct App {
     func run() async {
         do {
+            // вот это скорее всего не нужно, так как аргументы будут подтягиваться из другого места
             let args = CommandLine.arguments
             let baseDir = Args.value(after: "--base", in: args).map(URL.init(fileURLWithPath:))
                 ?? Paths.defaultBaseDir()

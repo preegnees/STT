@@ -17,6 +17,10 @@ struct PersistenceController {
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         }
+        
+        let description = container.persistentStoreDescriptions.first
+        description?.shouldMigrateStoreAutomatically = true
+        description?.shouldInferMappingModelAutomatically = true
 
         // Загружаем persistent store (создаёт/открывает AI_NOTE.sqlite)
         container.loadPersistentStores { _, error in

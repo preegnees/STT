@@ -1,11 +1,72 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24G90" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="MicTranscript" representedClassName="MicTranscript" parentEntity="Transcript" syncable="YES" codeGenerationType="class">
+        <relationship name="recording" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Recording" inverseName="micTranscript" inverseEntity="Recording"/>
+    </entity>
     <entity name="Note" representedClassName="Note" syncable="YES" codeGenerationType="class">
         <attribute name="content" optional="YES" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="title" attributeType="String"/>
+        <attribute name="summary" optional="YES" attributeType="String"/>
+        <attribute name="summaryInputsHash" optional="YES" attributeType="String"/>
+        <attribute name="summaryStatus" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES">
+            <userInfo>
+                <entry key="0" value="idle"/>
+                <entry key="1" value="pending"/>
+                <entry key="2" value="ready"/>
+                <entry key="3" value="failed"/>
+            </userInfo>
+        </attribute>
+        <attribute name="summaryUpdatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="recordings" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Recording" inverseName="note" inverseEntity="Recording"/>
+    </entity>
+    <entity name="Recording" representedClassName="Recording" syncable="YES" codeGenerationType="class">
+        <attribute name="basePath" attributeType="String"/>
+        <attribute name="channels" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="durationSec" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="endedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sampleRate" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="source" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES">
+            <userInfo>
+                <entry key="0" value="mic"/>
+                <entry key="1" value="sys"/>
+            </userInfo>
+        </attribute>
+        <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="status" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES">
+            <userInfo>
+                <entry key="0" value="recording"/>
+                <entry key="1" value="processing"/>
+                <entry key="2" value="done"/>
+                <entry key="3" value="failed"/>
+            </userInfo>
+        </attribute>
+        <relationship name="micTranscript" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="MicTranscript" inverseName="recording" inverseEntity="MicTranscript"/>
+        <relationship name="note" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Note" inverseName="recordings" inverseEntity="Note"/>
+        <relationship name="systemTranscript" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="SystemTranscript" inverseName="recording" inverseEntity="SystemTranscript"/>
+    </entity>
+    <entity name="SystemTranscript" representedClassName="SystemTranscript" parentEntity="Transcript" syncable="YES" codeGenerationType="class">
+        <relationship name="recording" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Recording" inverseName="systemTranscript" inverseEntity="Recording"/>
+    </entity>
+    <entity name="Transcript" representedClassName="Transcript" isAbstract="YES" syncable="YES" codeGenerationType="class">
+        <attribute name="avgConfidence" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fullText" attributeType="String" defaultValueString="&quot;&quot;"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="language" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="segments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TranscriptSegment" inverseName="transcript" inverseEntity="TranscriptSegment"/>
+    </entity>
+    <entity name="TranscriptSegment" representedClassName="TranscriptSegment" syncable="YES" codeGenerationType="class">
+        <attribute name="confidence" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="endMs" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="index" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="startMs" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="text" attributeType="String"/>
+        <relationship name="transcript" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Transcript" inverseName="segments" inverseEntity="Transcript"/>
     </entity>
 </model>

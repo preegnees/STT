@@ -1,23 +1,56 @@
 import Foundation
 
-struct Session {
-    let dir: URL
-    let transcriptURL: URL
+/*
+ Тут создает папка сессии
+ Изначально должна папка создаться, при ошибке должна удалиться
+ */
 
-    static func create(in base: URL) throws -> Session {
-        let stamp = ISO8601DateFormatter().string(from: .now).replacingOccurrences(of: ":", with: "-")
-        let dir = base.appendingPathComponent("call_\(stamp)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let transcript = dir.appendingPathComponent("transcript.txt")
-        if !FileManager.default.fileExists(atPath: transcript.path) {
-            try "".write(to: transcript, atomically: true, encoding: .utf8)
-        }
-        return Session(dir: dir, transcriptURL: transcript)
-    }
+// Как объект для передачи данных путей
+struct SessionPaths {
+    let root: URL
+    let mic: URL
+    let system: URL
 }
 
-enum Paths {
-    static func defaultBaseDir() -> URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("whisper_calls", isDirectory: true)
+// Сессии должны копироваться, поэтому можно сделать структурой
+enum SessionFS {
+    /// Создаёт уникальную папку сессии в Application Support, вместе с подпапками mic/ и system/.
+    static func makeSessionFolder(bundleID: String? = Bundle.main.bundleIdentifier) throws -> SessionPaths {
+        // 1) База: ~/Library/Application Support/<bundle-id>/sessions/
+        let appSup = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appDir = appSup.appendingPathComponent(bundleID ?? "AI_NOTE", isDirectory: true)
+        let sessions = appDir.appendingPathComponent("sessions", isDirectory: true)
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+
+        // 2) Уникальное имя сессии
+        let ts = timestamp()
+        let short = UUID().uuidString.prefix(8)
+        let name = "session_\(ts)_\(short)"
+        var root = sessions.appendingPathComponent(name, isDirectory: true)
+
+        // 3) Создаём корень и подпапки
+        let mic = root.appendingPathComponent("mic", isDirectory: true)
+        let system = root.appendingPathComponent("system", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: mic, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: system, withIntermediateDirectories: true)
+
+        // 4) (необязательно) исключаем из бэкапов iCloud/Time Machine
+        var rv = URLResourceValues()
+        rv.isExcludedFromBackup = true
+        try? root.setResourceValues(rv)
+
+        return SessionPaths(root: root, mic: mic, system: system)
+    }
+
+    /// Удаляет папку сессии рекурсивно (используй при откатах).
+    static func removeSessionFolder(_ paths: SessionPaths) {
+        try? FileManager.default.removeItem(at: paths.root)
+    }
+
+    private static func timestamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        return f.string(from: Date())
     }
 }
