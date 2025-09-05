@@ -76,9 +76,9 @@ extension Transcript {
     
     @MainActor
     private func updateFullText() {
-        let segments = (segments?.allObjects as? [TranscriptSegment] ?? [])
+        let sortedSegments = (segments?.allObjects as? [TranscriptSegment] ?? [])
             .sorted { $0.index < $1.index }
-        fullText = segments.map { $0.text ?? "" }.joined(separator: " ")
+        fullText = sortedSegments.map { $0.text ?? "" }.joined(separator: " ")
     }
 }
 
@@ -92,4 +92,9 @@ extension TranscriptSegment {
         get { Source(rawValue: source) ?? .mic }
         set { source = newValue.rawValue }
     }
+}
+
+enum SourceName: String {
+    case mic
+    case system
 }

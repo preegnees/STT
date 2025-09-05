@@ -16,7 +16,8 @@ class RecordService {
     private var sessionPaths: SessionPaths?
     private var transcriber: Transcriber?
     private var micRecorder: MicrophoneRecorder?
-    private var transcriptionManager: TranscriptionManager?
+    private var sysTranscriptionManager: TranscriptionManager?
+    private var micTranscriptionManager: TranscriptionManager?
     
     // ID записи в БД для отката
     private var recordingID: NSManagedObjectID?
@@ -53,12 +54,23 @@ class RecordService {
             print("— Recording started —")
             
             // 6) Создаем и запускаем TranscriptionManager
-            let manager = TranscriptionManager(
+            let micManager = TranscriptionManager(
                 sessionDir: paths.mic,
-                transcriptService: transcriptService,
-                transcriber: transcriber
+                transcript: micTranscript,
+                transcriber: transcriber,
+                context: context
             )
-            self.transcriptionManager = manager
+
+            // System manager
+            let sysManager = TranscriptionManager(
+                sessionDir: paths.system,
+                transcript: sysTranscript,
+                transcriber: transcriber,
+                context: context
+            )
+
+            self.micTranscriptionManager = micManager
+            self.sysTranscriptionManager = sysManager
             
             // Запускаем воркер транскрипции в фоне
             Task.detached { await manager.run() }

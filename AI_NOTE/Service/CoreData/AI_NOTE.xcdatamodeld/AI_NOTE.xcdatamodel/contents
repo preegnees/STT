@@ -71,7 +71,7 @@
         <attribute name="source" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES">
             <userInfo>
                 <entry key="0" value="mic"/>
-                <entry key="1" value="sys"/>
+                <entry key="1" value="system"/>
             </userInfo>
         </attribute>
         <attribute name="startMs" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>

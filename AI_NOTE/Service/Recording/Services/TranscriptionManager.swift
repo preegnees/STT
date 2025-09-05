@@ -1,10 +1,13 @@
 import Foundation
 import AVFoundation
+import CoreData
 
 actor TranscriptionManager {
     private let sessionDir: URL
     private let transcript: Transcript
     private let transcriber: Transcriber
+    
+    private let context: NSManagedObjectContext
 
     // Очередь и флаги работы
     private var queue: [(URL, Int)] = []
@@ -17,10 +20,11 @@ actor TranscriptionManager {
     // Последняя записанная строка (анти-дубль «подряд идентичных»)
     private var lastWrittenText: String? = nil
 
-    init(sessionDir: URL, transcript: Transcript, transcriber: Transcriber) {
+    init(sessionDir: URL, transcript: Transcript, transcriber: Transcriber, context: NSManagedObjectContext) {
         self.sessionDir = sessionDir
         self.transcript = transcript
         self.transcriber = transcriber
+        self.context = context
     }
 
     /// Кладём файл в очередь, если его индекс ещё не обрабатывается и не был обработан
@@ -90,7 +94,7 @@ actor TranscriptionManager {
 
         do {
             // Транскрибация
-            let rawText = try await transcriber.transcribe(file: processingURL)
+            let (rawText, confidence) = try await transcriber.transcribe(file: processingURL)
 
             // Санитайз и мусор-фильтр
             let printable = TextFilter.sanitize(rawText)
@@ -101,13 +105,14 @@ actor TranscriptionManager {
                 let endMs = Int32((Double(index - 1) * chunkSec + chunkSec) * 1000)
                 
                 // Сохраняем в БД
-                await transcriptService.addSegment(
+                await transcript.addSegment(
                     text: printable,
                     startMs: startMs,
                     endMs: endMs,
                     index: Int32(index),
-                    confidence: 0.8, // TODO: получать из Whisper
-                    source: .mic
+                    confidence: confidence,
+                    context: self.context,
+                    source: processingURL.deletingLastPathComponent().lastPathComponent == SourceName.mic.rawValue ? .mic : .system
                 )
                 
                 lastWrittenText = printable

@@ -30,12 +30,15 @@ actor Transcriber {
         self.options = opts
     }
 
-    func transcribe(file url: URL) async throws -> String {
+    func transcribe(file url: URL) async throws -> (String, Double) {
         let results = try await pipeline.transcribe(audioPath: url.path, decodeOptions: options)
         // Собираем текст из сегментов
         let text = results.flatMap(\.segments).map(\.text).joined()
             .replacingOccurrences(of: #"<\|[^>]*\|>"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return text
+        // Вычисление Confidence
+        let avgConfidence = 0.0 // заглушка
+        
+        return (text, avgConfidence)
     }
 }
