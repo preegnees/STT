@@ -5,9 +5,9 @@ actor Transcriber {
     private let pipeline: WhisperKit
     private let options: DecodingOptions
 
-    init(modelName: String?, language: String) async throws {
+    init(_ settings: Settings) async throws {
         var cfg = WhisperKitConfig()
-        if let m = modelName { cfg.model = m }
+        if let m = settings.modelWhisper { cfg.model = m }
 
         if #available(macOS 13.0, *) {
             var compute = ModelComputeOptions()
@@ -19,7 +19,7 @@ actor Transcriber {
         self.pipeline = try await WhisperKit(cfg)
 
         var opts = DecodingOptions()
-        opts.language = language
+        opts.language = settings.language
         opts.task = .transcribe
         opts.noSpeechThreshold = 0.60
         opts.temperature = 0.3

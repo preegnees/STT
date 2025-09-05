@@ -17,18 +17,17 @@ class RecordService {
     private var transcriber: Transcriber?
     private var micRecorder: MicrophoneRecorder?
     private var transcriptionManager: TranscriptionManager?
-    private var transcriptWriter: TranscriptWriter?
+    private var transcriptService: TranscriptService?
     
-    // ID записей в БД для отката
-    private var micRecordingID: NSManagedObjectID?
-    private var sysRecordingID: NSManagedObjectID?
+    // ID записи в БД для отката
+    private var recordingID: NSManagedObjectID?
     
     init(container: NSPersistentContainer) {
         self.container = container
         self.context = container.viewContext
     }
     
-    public func startRecording(note: Note) async throws {
+    public func startRecording(note: Note, settings: Settings) async throws {
         // Проверка на текущую запись
         guard sessionPaths == nil else {
             throw ServiceError.alreadyRunning
@@ -36,10 +35,11 @@ class RecordService {
         
         do {
             // 1) Проверяем разрешения
+            // TODO: В будущем добавить сюда системный звук
             try await ensureMicrophonePermission()
             
             // 2) Создаем Whisper
-            let transcriber = try await Transcriber(modelName: nil, language: "ru")
+            let transcriber = try await Transcriber(settings)
             self.transcriber = transcriber
             
             // 3) Создание директории сессии
@@ -47,19 +47,24 @@ class RecordService {
             self.sessionPaths = paths
             
             // 4) Создаем записи в БД
-            let (micID, sysID) = try createDBRecords(for: note, basePath: paths.root.path)
-            self.micRecordingID = micID
-            self.sysRecordingID = sysID
+            let (recordingID, micTranscript, sysTranscript) = try createDBRecords(for: note, basePath: paths.root.path)
+            self.recordingID = recordingID
             
-            // 5) Создаем TranscriptWriter
-            let transcriptURL = paths.root.appendingPathComponent("transcript.txt")
-            let writer = try TranscriptWriter(url: transcriptURL)
-            self.transcriptWriter = writer
-            await writer.append("— Recording started —")
+            // 5) Создаем TranscriptService вместо TranscriptWriter
+            let transcriptService = TranscriptService(
+                micTranscript: micTranscript,
+                sysTranscript: sysTranscript,
+                context: context
+            )
+            self.transcriptService = transcriptService
+            await transcriptService.appendLog("— Recording started —")
             
             // 6) Создаем и запускаем TranscriptionManager
-            let session = Session(dir: paths.root, transcriptURL: transcriptURL)
-            let manager = TranscriptionManager(session: session, transcriber: transcriber, writer: writer)
+            let manager = TranscriptionManager(
+                sessionDir: paths.mic,
+                transcriptService: transcriptService,
+                transcriber: transcriber
+            )
             self.transcriptionManager = manager
             
             // Запускаем воркер транскрипции в фоне
@@ -92,30 +97,21 @@ class RecordService {
         // Останавливаем микрофонный рекордер
         micRecorder?.stop()
         
-        // Обновляем записи в БД
+        // Обновляем запись в БД
         let now = Date()
-        if let micID = micRecordingID,
-           let micRec = try? context.existingObject(with: micID) as? Recording {
-            micRec.endedAt = now
-            if let start = micRec.startedAt {
-                micRec.durationSec = now.timeIntervalSince(start)
+        if let recordingID = recordingID,
+           let recording = try? context.existingObject(with: recordingID) as? Recording {
+            recording.endedAt = now
+            if let start = recording.startedAt {
+                recording.durationSec = now.timeIntervalSince(start)
             }
-            micRec.statusEnum = .done
-        }
-        
-        if let sysID = sysRecordingID,
-           let sysRec = try? context.existingObject(with: sysID) as? Recording {
-            sysRec.endedAt = now
-            if let start = sysRec.startedAt {
-                sysRec.durationSec = now.timeIntervalSince(start)
-            }
-            sysRec.statusEnum = .done
+            recording.statusEnum = .done
         }
         
         try context.save()
         
         // Записываем в лог
-        await transcriptWriter?.append("— Recording stopped —")
+        await transcriptService?.appendLog("— Recording stopped —")
         
         // Очищаем состояние
         cleanupState()
@@ -123,47 +119,37 @@ class RecordService {
     
     // MARK: - Private Methods
     
-    private func createDBRecords(for note: Note, basePath: String) throws -> (NSManagedObjectID, NSManagedObjectID) {
+    private func createDBRecords(for note: Note, basePath: String) throws -> (NSManagedObjectID, MicTranscript, SystemTranscript) {
         let ctx = note.managedObjectContext ?? context
 
-        // MIC Recording
-        let micRec = Recording(context: ctx)
-        micRec.id = UUID()
-        micRec.startedAt = Date()
-        micRec.statusEnum = .recording
-        micRec.sourceEnum = .mic
-        micRec.basePath = basePath
-        micRec.note = note
+        // Одна запись для обоих источников
+        let recording = Recording(context: ctx)
+        recording.id = UUID()
+        recording.startedAt = Date()
+        recording.statusEnum = .recording
+        recording.basePath = basePath
+        recording.note = note
 
         let micTranscript = MicTranscript(context: ctx)
         micTranscript.id = UUID()
         micTranscript.fullText = ""
         micTranscript.createdAt = Date()
         micTranscript.updatedAt = Date()
-        micTranscript.recording = micRec
-
-        // SYSTEM Recording (пока заглушка)
-        let sysRec = Recording(context: ctx)
-        sysRec.id = UUID()
-        sysRec.startedAt = Date()
-        sysRec.statusEnum = .recording
-        sysRec.sourceEnum = .sys
-        sysRec.basePath = basePath
-        sysRec.note = note
+        recording.micTranscript = micTranscript
 
         let sysTranscript = SystemTranscript(context: ctx)
         sysTranscript.id = UUID()
         sysTranscript.fullText = ""
         sysTranscript.createdAt = Date()
         sysTranscript.updatedAt = Date()
-        sysTranscript.recording = sysRec
+        recording.systemTranscript = sysTranscript
 
         // Помечаем саммари как устаревшее
         note.summaryStatusEnum = .pending
         note.summaryUpdatedAt = nil
 
         try ctx.save()
-        return (micRec.objectID, sysRec.objectID)
+        return (recording.objectID, micTranscript, sysTranscript)
     }
 
     private func deleteRecords(_ ids: [NSManagedObjectID]) throws {
@@ -180,12 +166,8 @@ class RecordService {
         micRecorder?.stop()
         
         // Удаляем записи из БД
-        var idsToDelete: [NSManagedObjectID] = []
-        if let micID = micRecordingID { idsToDelete.append(micID) }
-        if let sysID = sysRecordingID { idsToDelete.append(sysID) }
-        
-        if !idsToDelete.isEmpty {
-            try? deleteRecords(idsToDelete)
+        if let recordingID = recordingID {
+            try? deleteRecords([recordingID])
         }
         
         // Удаляем папку сессии
@@ -200,10 +182,9 @@ class RecordService {
         micRecorder = nil
         transcriber = nil
         transcriptionManager = nil
-        transcriptWriter = nil
+        transcriptService = nil
         sessionPaths = nil
-        micRecordingID = nil
-        sysRecordingID = nil
+        recordingID = nil
     }
 }
 
@@ -225,11 +206,4 @@ extension RecordService {
             }
         }
     }
-}
-
-// MARK: - Session Helper
-
-private struct Session {
-    let dir: URL
-    let transcriptURL: URL
 }

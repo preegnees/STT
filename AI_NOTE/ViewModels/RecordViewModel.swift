@@ -38,8 +38,8 @@ final class RecordViewModel: ObservableObject {
     private let service: RecordService
     private let container: NSPersistentContainer
 
-    init(container: NSPersistentContainer) {
-        self.container = container
+    init() {
+        self.container = PersistenceController.shared.container
         self.service = RecordService(container: container)
     }
 

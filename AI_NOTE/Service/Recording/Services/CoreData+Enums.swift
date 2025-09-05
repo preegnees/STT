@@ -6,15 +6,10 @@
 //
 
 import Foundation
+import CoreData
 
 extension Recording {
-    // Источники данных от микро и системного звука
-    enum Source: Int16 {
-        case mic = 0
-        case sys = 1
-    }
-    
-    enum Status: Int16 {
+     enum Status: Int16 {
         case recording = 0     // идёт запись
         case processing = 1    // запись остановлена, но очередь сегментов ещё дорешивается
         case done = 2          // всё готово
@@ -28,11 +23,6 @@ extension Recording {
      
      Swift автоматически создаёт для такого enum инициализатор (для source) init?(rawValue: Int16)
      */
-    var sourceEnum: Source {
-        get { Source(rawValue: source) ?? .mic }
-        set { source = newValue.rawValue }
-    }
-    
     var statusEnum: Status {
         get { Status(rawValue: status) ?? .recording }
         set { status = newValue.rawValue }
@@ -52,5 +42,27 @@ extension Note {
     var summaryStatusEnum: SummaryStatus {
         get { SummaryStatus(rawValue: summaryStatus) ?? .idle }
         set { summaryStatus = newValue.rawValue }
+    }
+}
+
+extension Transcript {
+    func addSegment(text: String, startMs: Int32, endMs: Int32, index: Int32, confidence: Double = 0.0, context: NSManagedObjectContext) {
+        let segment = TranscriptSegment(context: context)
+        segment.id = UUID()
+        segment.text = text
+        segment.startMs = startMs
+        segment.endMs = endMs
+        segment.index = index
+        segment.confidence = confidence
+        segment.transcript = self
+        
+        updateFullText()
+        self.updatedAt = Date()
+    }
+    
+    private func updateFullText() {
+        let segments = (segments?.allObjects as? [TranscriptSegment] ?? [])
+            .sorted { $0.index < $1.index }
+        fullText = segments.map { $0.text ?? "" }.joined(separator: " ")
     }
 }

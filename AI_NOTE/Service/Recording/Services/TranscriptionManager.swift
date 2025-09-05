@@ -2,9 +2,9 @@ import Foundation
 import AVFoundation
 
 actor TranscriptionManager {
-    private let session: Session
+    private let sessionDir: URL
+    private let transcriptService: TranscriptService
     private let transcriber: Transcriber
-    private let writer: TranscriptWriter
 
     // Очередь и флаги работы
     private var queue: [(URL, Int)] = []
@@ -15,12 +15,12 @@ actor TranscriptionManager {
     private var processedIdx = Set<Int>()
 
     // Последняя записанная строка (анти-дубль «подряд идентичных»)
-    private var lastWrittenLine: String? = nil
+    private var lastWrittenText: String? = nil
 
-    init(session: Session, transcriber: Transcriber, writer: TranscriptWriter) {
-        self.session = session
+    init(sessionDir: URL, transcriptService: TranscriptService, transcriber: Transcriber) {
+        self.sessionDir = sessionDir
+        self.transcriptService = transcriptService
         self.transcriber = transcriber
-        self.writer = writer
     }
 
     /// Кладём файл в очередь, если его индекс ещё не обрабатывается и не был обработан
@@ -33,10 +33,10 @@ actor TranscriptionManager {
     func run() async {
         guard !isRunning else { return }
         isRunning = true
-        await writer.append("Transcription worker started")
+        await transcriptService.appendLog("Transcription worker started")
 
         // Однажды создаём индексатор для папки сессии
-        let indexer = FileIndexer(dir: session.dir)
+        let indexer = FileIndexer(dir: sessionDir)
 
         // Стартовый захват *.pending.wav
         for url in indexer.untranscribed() {
@@ -91,18 +91,25 @@ actor TranscriptionManager {
             // Транскрибация
             let rawText = try await transcriber.transcribe(file: processingURL)
 
-            // Таймкод из фактической длительности файла
-            let chunkSec = (try? AVAudioFile(forReading: processingURL).durationSeconds) ?? 15.0
-            let timecode = timecodeFor(index: index, chunkSeconds: chunkSec)
-
             // Санитайз и мусор-фильтр
             let printable = TextFilter.sanitize(rawText)
-            if !TextFilter.shouldDrop(printable) {
-                let line = "\(timecode) \(printable)"
-                if line != lastWrittenLine {              // анти-дубль подряд
-                    await writer.append(line)
-                    lastWrittenLine = line
-                }
+            if !TextFilter.shouldDrop(printable) && printable != lastWrittenText {
+                // Вычисляем временные метки
+                let chunkSec = (try? AVAudioFile(forReading: processingURL).durationSeconds) ?? 10.0
+                let startMs = Int32(max(0.0, Double(index - 1) * chunkSec) * 1000)
+                let endMs = Int32((Double(index - 1) * chunkSec + chunkSec) * 1000)
+                
+                // Сохраняем в БД
+                await transcriptService.addSegment(
+                    text: printable,
+                    startMs: startMs,
+                    endMs: endMs,
+                    index: Int32(index),
+                    confidence: 0.8, // TODO: получать из Whisper
+                    source: .mic
+                )
+                
+                lastWrittenText = printable
             }
 
             // Пометить индекс как обработанный
@@ -126,15 +133,5 @@ actor TranscriptionManager {
                 try? fm.moveItem(at: processingURL, to: backURL)
             }
         }
-    }
-
-    private func timecodeFor(index: Int, chunkSeconds: Double) -> String {
-        let start = max(0.0, Double(index - 1) * chunkSeconds)
-        let end = start + chunkSeconds
-        func hhmmss(_ t: Double) -> String {
-            let ti = Int(t)
-            return String(format: "%02d:%02d:%02d", ti/3600, (ti%3600)/60, ti%60)
-        }
-        return "[\(hhmmss(start))-\(hhmmss(end))]"
     }
 }
