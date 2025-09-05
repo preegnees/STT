@@ -51,7 +51,7 @@ class RecordService {
             self.recordingID = recordingID
             
             // 5) Создаем TranscriptService вместо TranscriptWriter
-            let transcriptService = TranscriptService(
+            let transcriptService = Transcript(
                 micTranscript: micTranscript,
                 sysTranscript: sysTranscript,
                 context: context

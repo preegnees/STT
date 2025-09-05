@@ -46,6 +46,7 @@ extension Note {
 }
 
 extension Transcript {
+    @MainActor
     func addSegment(text: String, startMs: Int32, endMs: Int32, index: Int32, confidence: Double = 0.0, context: NSManagedObjectContext) {
         let segment = TranscriptSegment(context: context)
         segment.id = UUID()
@@ -58,8 +59,22 @@ extension Transcript {
         
         updateFullText()
         self.updatedAt = Date()
+        
+        do {
+            try context.save()
+        } catch {
+            print("Failed to save transcript segment: \(error)")
+        }
     }
     
+    @MainActor
+    func appendLog(_ text: String, context: NSManagedObjectContext) {
+        let now = Date()
+        let startMs = Int32(now.timeIntervalSince1970 * 1000)
+        addSegment(text: text, startMs: startMs, endMs: startMs, index: 0, context: context)
+    }
+    
+    @MainActor
     private func updateFullText() {
         let segments = (segments?.allObjects as? [TranscriptSegment] ?? [])
             .sorted { $0.index < $1.index }
