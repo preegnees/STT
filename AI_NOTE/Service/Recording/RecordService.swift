@@ -32,7 +32,7 @@ class RecordService {
         guard sessionPaths == nil else {
             throw ServiceError.alreadyRunning
         }
-        
+                
         do {
             // 1) Проверяем разрешения
             // TODO: В будущем добавить сюда системный звук
@@ -72,23 +72,32 @@ class RecordService {
             self.micTranscriptionManager = micManager
             self.sysTranscriptionManager = sysManager
             
-            // Запускаем воркер транскрипции в фоне
-            Task.detached { await manager.run() }
+            Task.detached {
+                await self.micTranscriptionManager?.run()
+            }
+            
+            /// Мок для системного запуска
+//            Task.detached {
+//                await self.sysTranscriptionManager?.run()
+//            }
             
             // 7) Создаем и запускаем микрофонный рекордер
             let recorder = try MicrophoneRecorder(
                 targetSampleRate: 16000,
                 chunkSeconds: 10.0,
                 onSegment: { url, idx in
-                    Task { await manager.enqueue(url: url, index: idx) }
+                    Task { await micManager.enqueue(url: url, index: idx) }
                 }
             )
             self.micRecorder = recorder
-            
             try recorder.start(into: paths.mic)
-            
+
+            // Тут будет SystemAudio
+//            self.sysRecord =
+//            try recorder.start(into: paths.mic)
         } catch {
             // Откат при ошибке
+            // TODO Продолжить завтра
             await rollbackOnError()
             throw error
         }
