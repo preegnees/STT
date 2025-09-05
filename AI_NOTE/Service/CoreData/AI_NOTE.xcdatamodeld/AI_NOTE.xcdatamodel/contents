@@ -48,6 +48,15 @@
         <relationship name="note" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Note" inverseName="recordings" inverseEntity="Note"/>
         <relationship name="systemTranscript" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="SystemTranscript" inverseName="recording" inverseEntity="SystemTranscript"/>
     </entity>
+    <entity name="Settings" representedClassName="Settings" syncable="YES" codeGenerationType="class">
+        <attribute name="language" attributeType="String" defaultValueString="ru">
+            <userInfo>
+                <entry key="0" value="ru"/>
+                <entry key="1" value="en"/>
+            </userInfo>
+        </attribute>
+        <attribute name="modelWhisper" optional="YES" attributeType="String"/>
+    </entity>
     <entity name="SystemTranscript" representedClassName="SystemTranscript" parentEntity="Transcript" syncable="YES" codeGenerationType="class">
         <relationship name="recording" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Recording" inverseName="systemTranscript" inverseEntity="Recording"/>
     </entity>

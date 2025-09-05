@@ -6,112 +6,127 @@
 //
 
 import CoreData
+import Foundation
 
 class RecordService {
-    /*
-     Нужно создать функции включения и выключения микро и системного аудио.
-     Как-то нужно получить базу данных
-     */
     private let container: NSPersistentContainer
     private let context: NSManagedObjectContext
     
-    // делаем optional, т.к. создаём позже
-    private var sessionFolder: URL?
-    // можно держать подпапки, если используешь mic/system раздельно
-    private var micFolder: URL?
-    private var systemFolder: URL?
+    // Состояние записи
+    private var sessionPaths: SessionPaths?
+    private var transcriber: Transcriber?
+    private var micRecorder: MicrophoneRecorder?
+    private var transcriptionManager: TranscriptionManager?
+    private var transcriptWriter: TranscriptWriter?
+    
+    // ID записей в БД для отката
+    private var micRecordingID: NSManagedObjectID?
+    private var sysRecordingID: NSManagedObjectID?
     
     init(container: NSPersistentContainer) {
-        // Тут мы должны получить контроллер (он хранит в тч контекст)
         self.container = container
         self.context = container.viewContext
     }
     
     public func startRecording(note: Note) async throws {
-        
-        /*
-         Итого что тут нужно сделать:
-         Проверить, что записи нет
-         Запросить доступ на запись и микро
-         Сконфигурировать висшпер  из main
-         Создать в бд запись на рекорд
-         Запустить вишпер
-         Сохраниить в бд
-         Запустить запист
-         если что то упало, то нужно откатываться
-         убирать лоадер
-         если все ок, запись пошла статус изменить в ui
-         */
-        
         // Проверка на текущую запись
-        guard sessionFolder == nil else {
+        guard sessionPaths == nil else {
             throw ServiceError.alreadyRunning
         }
         
-        // Проверка доступов
-        try await ensureMicrophonePermission()
-        // Тоже самое нужно сделать для системного аудио
-        
         do {
-            // Проверяем разрешение на запись
-            try await micStartRecord()
-            try await sysStartRecord()
+            // 1) Проверяем разрешения
+            try await ensureMicrophonePermission()
             
-            // Добавить создание вишпера
+            // 2) Создаем Whisper
+            let transcriber = try await Transcriber(modelName: nil, language: "ru")
+            self.transcriber = transcriber
             
-            // Создание директории
+            // 3) Создание директории сессии
             let paths = try SessionFS.makeSessionFolder()
-            self.sessionFolder = paths.root
+            self.sessionPaths = paths
             
-            // Создаем запись
-            var rec = Recording(context: self.context)
-            rec.id = UUID()
-            rec.startedAt = Date()
-            rec.sourceEnum = .mic
-            rec.statusEnum = .processing // вот тут должен быть стартинг статус
-            rec.basePath = paths.root.path    // или paths.root.path, если без подпапок
-            rec.note = note
+            // 4) Создаем записи в БД
+            let (micID, sysID) = try createDBRecords(for: note, basePath: paths.root.path)
+            self.micRecordingID = micID
+            self.sysRecordingID = sysID
             
-            // Создать транскрипт и прочее в бд
-            // еще немнего текст
+            // 5) Создаем TranscriptWriter
+            let transcriptURL = paths.root.appendingPathComponent("transcript.txt")
+            let writer = try TranscriptWriter(url: transcriptURL)
+            self.transcriptWriter = writer
+            await writer.append("— Recording started —")
             
-            // Создать врайтера, чтобы сохранять транскрипт
+            // 6) Создаем и запускаем TranscriptionManager
+            let session = Session(dir: paths.root, transcriptURL: transcriptURL)
+            let manager = TranscriptionManager(session: session, transcriber: transcriber, writer: writer)
+            self.transcriptionManager = manager
+            
+            // Запускаем воркер транскрипции в фоне
+            Task.detached { await manager.run() }
+            
+            // 7) Создаем и запускаем микрофонный рекордер
+            let recorder = try MicrophoneRecorder(
+                targetSampleRate: 16000,
+                chunkSeconds: 10.0,
+                onSegment: { url, idx in
+                    Task { await manager.enqueue(url: url, index: idx) }
+                }
+            )
+            self.micRecorder = recorder
+            
+            try recorder.start(into: paths.mic)
+            
+        } catch {
+            // Откат при ошибке
+            await rollbackOnError()
+            throw error
+        }
+    }
+    
+    public func stopRecording() async throws {
+        guard sessionPaths != nil else {
+            throw ServiceError.notRunning
         }
         
+        // Останавливаем микрофонный рекордер
+        micRecorder?.stop()
         
+        // Обновляем записи в БД
+        let now = Date()
+        if let micID = micRecordingID,
+           let micRec = try? context.existingObject(with: micID) as? Recording {
+            micRec.endedAt = now
+            if let start = micRec.startedAt {
+                micRec.durationSec = now.timeIntervalSince(start)
+            }
+            micRec.statusEnum = .done
+        }
         
+        if let sysID = sysRecordingID,
+           let sysRec = try? context.existingObject(with: sysID) as? Recording {
+            sysRec.endedAt = now
+            if let start = sysRec.startedAt {
+                sysRec.durationSec = now.timeIntervalSince(start)
+            }
+            sysRec.statusEnum = .done
+        }
         
-        // 1) Запрос прав на микро, потом еще нужно на Системное Аудио
-        try await ensureMicrophonePermission()
-
-        // 2) Папка, куда будет записываться аудио
-//        let folder = try self.makeSessionFolder()
-//        self.sessionFolder = folder
-
-        // 3) Создаём записи в БД и сохраняем (получим objectID)
-//        let (micID, sysID) = try createDBRecords(for: note, basePath: folder.path)
-
-        // 4–5) Пытаемся запустить оба источника
-//        do {
-//            try await micStartRecord()     // реальный старт микрофона (или пока заглушка, но отличающаяся от system)
-//            try await sysStartRecord()     // сейчас заглушка; позже — реальный рекордер системного аудио
-//            // Успех: запоминаем активные ID
-////            self.micRecordingID = micID
-////            self.sysRecordingID = sysID
-//        } catch {
-//            // 7) Откат: остановить то, что успели (если нужно), удалить БД-записи и папку
-//            await stopIfNeededSilently()        // если микрофон стартовал — остановим его (в заглушке может быть no-op)
-//            try? deleteRecords([micID, sysID])  // удаляем из Core Data
-//            try? FileManager.default.removeItem(at: folder)
-//            self.sessionFolder = nil
-//            throw error
-//        }
+        try context.save()
+        
+        // Записываем в лог
+        await transcriptWriter?.append("— Recording stopped —")
+        
+        // Очищаем состояние
+        cleanupState()
     }
+    
+    // MARK: - Private Methods
     
     private func createDBRecords(for note: Note, basePath: String) throws -> (NSManagedObjectID, NSManagedObjectID) {
         let ctx = note.managedObjectContext ?? context
 
-        // MIC
+        // MIC Recording
         let micRec = Recording(context: ctx)
         micRec.id = UUID()
         micRec.startedAt = Date()
@@ -120,30 +135,30 @@ class RecordService {
         micRec.basePath = basePath
         micRec.note = note
 
-        let micTr = MicTranscript(context: ctx)
-        micTr.id = UUID()
-        micTr.fullText = ""
-        micTr.createdAt = Date()
-        micTr.updatedAt = Date()
-        micTr.recording = micRec
+        let micTranscript = MicTranscript(context: ctx)
+        micTranscript.id = UUID()
+        micTranscript.fullText = ""
+        micTranscript.createdAt = Date()
+        micTranscript.updatedAt = Date()
+        micTranscript.recording = micRec
 
-        // SYSTEM
+        // SYSTEM Recording (пока заглушка)
         let sysRec = Recording(context: ctx)
         sysRec.id = UUID()
         sysRec.startedAt = Date()
         sysRec.statusEnum = .recording
-        sysRec.sourceEnum = .system
+        sysRec.sourceEnum = .sys
         sysRec.basePath = basePath
         sysRec.note = note
 
-        let sysTr = SystemTranscript(context: ctx)
-        sysTr.id = UUID()
-        sysTr.fullText = ""
-        sysTr.createdAt = Date()
-        sysTr.updatedAt = Date()
-        sysTr.recording = sysRec
+        let sysTranscript = SystemTranscript(context: ctx)
+        sysTranscript.id = UUID()
+        sysTranscript.fullText = ""
+        sysTranscript.createdAt = Date()
+        sysTranscript.updatedAt = Date()
+        sysTranscript.recording = sysRec
 
-        // Саммари помечаем устаревшим
+        // Помечаем саммари как устаревшее
         note.summaryStatusEnum = .pending
         note.summaryUpdatedAt = nil
 
@@ -152,56 +167,49 @@ class RecordService {
     }
 
     private func deleteRecords(_ ids: [NSManagedObjectID]) throws {
-        let ctx = context
         for id in ids {
-            if let obj = try? ctx.existingObject(with: id) {
-                ctx.delete(obj)
+            if let obj = try? context.existingObject(with: id) {
+                context.delete(obj)
             }
         }
-        try ctx.save()
+        try context.save()
     }
-
-    public func stopRecording() async throws {
-        let ctx = context
-        let now = Date()
-
-//        if let id = micRecordingID, let rec = try? ctx.existingObject(with: id) as? Recording {
-//            rec.endedAt = now
-//            if let s = rec.startedAt { rec.durationSec = now.timeIntervalSince(s) }
-//            rec.statusEnum = .done
-//        }
-//        if let id = sysRecordingID, let rec = try? ctx.existingObject(with: id) as? Recording {
-//            rec.endedAt = now
-//            if let s = rec.startedAt { rec.durationSec = now.timeIntervalSince(s) }
-//            rec.statusEnum = .done
-//        }
-//        try ctx.save()
-//
-//        // Очистка runtime
-//        micRecordingID = nil
-//        sysRecordingID = nil
-//        sessionFolder = nil
+    
+    private func rollbackOnError() async {
+        // Останавливаем рекордер если запустился
+        micRecorder?.stop()
+        
+        // Удаляем записи из БД
+        var idsToDelete: [NSManagedObjectID] = []
+        if let micID = micRecordingID { idsToDelete.append(micID) }
+        if let sysID = sysRecordingID { idsToDelete.append(sysID) }
+        
+        if !idsToDelete.isEmpty {
+            try? deleteRecords(idsToDelete)
+        }
+        
+        // Удаляем папку сессии
+        if let paths = sessionPaths {
+            SessionFS.removeSessionFolder(paths)
+        }
+        
+        cleanupState()
     }
-
-    private func stopIfNeededSilently() async {
-        // Здесь останавливаем то, что успели поднять (микрофонный рекордер и т. п.)
-        // Сейчас — заглушка: ничего не делаем
-    }
-
-    private func micStartRecord() async throws {
-        // Реальный запуск микрофона: подготовка рекордера/очереди
-        // Пока — проверка-заглушка: имитируем успех
-        return
-    }
-
-    private func sysStartRecord() async throws {
-        // Пока полная заглушка — имитируем успех
-        return
+    
+    private func cleanupState() {
+        micRecorder = nil
+        transcriber = nil
+        transcriptionManager = nil
+        transcriptWriter = nil
+        sessionPaths = nil
+        micRecordingID = nil
+        sysRecordingID = nil
     }
 }
 
+// MARK: - Extensions
+
 extension RecordService {
-    // Ошибки запуска сервиса
     enum ServiceError: LocalizedError {
         case alreadyRunning
         case notRunning
@@ -217,4 +225,11 @@ extension RecordService {
             }
         }
     }
+}
+
+// MARK: - Session Helper
+
+private struct Session {
+    let dir: URL
+    let transcriptURL: URL
 }
