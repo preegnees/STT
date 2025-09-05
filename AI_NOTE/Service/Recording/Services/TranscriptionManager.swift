@@ -3,7 +3,7 @@ import AVFoundation
 
 actor TranscriptionManager {
     private let sessionDir: URL
-    private let transcriptService: TranscriptService
+    private let transcript: Transcript
     private let transcriber: Transcriber
 
     // Очередь и флаги работы
@@ -17,9 +17,9 @@ actor TranscriptionManager {
     // Последняя записанная строка (анти-дубль «подряд идентичных»)
     private var lastWrittenText: String? = nil
 
-    init(sessionDir: URL, transcriptService: TranscriptService, transcriber: Transcriber) {
+    init(sessionDir: URL, transcript: Transcript, transcriber: Transcriber) {
         self.sessionDir = sessionDir
-        self.transcriptService = transcriptService
+        self.transcript = transcript
         self.transcriber = transcriber
     }
 
@@ -33,7 +33,8 @@ actor TranscriptionManager {
     func run() async {
         guard !isRunning else { return }
         isRunning = true
-        await transcriptService.appendLog("Transcription worker started")
+        defer { isRunning = false }
+        print("Transcription worker started")
 
         // Однажды создаём индексатор для папки сессии
         let indexer = FileIndexer(dir: sessionDir)

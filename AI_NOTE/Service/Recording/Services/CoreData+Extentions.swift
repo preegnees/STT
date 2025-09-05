@@ -46,8 +46,14 @@ extension Note {
 }
 
 extension Transcript {
+    var sourceType: Int16 {
+        if self is MicTranscript { return 0 }
+        if self is SystemTranscript { return 1 }
+        return 0
+    }
+    
     @MainActor
-    func addSegment(text: String, startMs: Int32, endMs: Int32, index: Int32, confidence: Double = 0.0, context: NSManagedObjectContext) {
+    func addSegment(text: String, startMs: Int32, endMs: Int32, index: Int32, confidence: Double = 0.0, context: NSManagedObjectContext, source: TranscriptSegment.Source) {
         let segment = TranscriptSegment(context: context)
         segment.id = UUID()
         segment.text = text
@@ -55,6 +61,7 @@ extension Transcript {
         segment.endMs = endMs
         segment.index = index
         segment.confidence = confidence
+        segment.source = source.rawValue
         segment.transcript = self
         
         updateFullText()
@@ -68,16 +75,21 @@ extension Transcript {
     }
     
     @MainActor
-    func appendLog(_ text: String, context: NSManagedObjectContext) {
-        let now = Date()
-        let startMs = Int32(now.timeIntervalSince1970 * 1000)
-        addSegment(text: text, startMs: startMs, endMs: startMs, index: 0, context: context)
-    }
-    
-    @MainActor
     private func updateFullText() {
         let segments = (segments?.allObjects as? [TranscriptSegment] ?? [])
             .sorted { $0.index < $1.index }
         fullText = segments.map { $0.text ?? "" }.joined(separator: " ")
+    }
+}
+
+extension TranscriptSegment {
+    enum Source: Int16 {
+        case mic = 0
+        case system = 1
+    }
+    
+    var sourceEnum: Source {
+        get { Source(rawValue: source) ?? .mic }
+        set { source = newValue.rawValue }
     }
 }

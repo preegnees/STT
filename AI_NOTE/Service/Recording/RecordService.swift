@@ -17,7 +17,6 @@ class RecordService {
     private var transcriber: Transcriber?
     private var micRecorder: MicrophoneRecorder?
     private var transcriptionManager: TranscriptionManager?
-    private var transcriptService: TranscriptService?
     
     // ID записи в БД для отката
     private var recordingID: NSManagedObjectID?
@@ -50,14 +49,8 @@ class RecordService {
             let (recordingID, micTranscript, sysTranscript) = try createDBRecords(for: note, basePath: paths.root.path)
             self.recordingID = recordingID
             
-            // 5) Создаем TranscriptService вместо TranscriptWriter
-            let transcriptService = Transcript(
-                micTranscript: micTranscript,
-                sysTranscript: sysTranscript,
-                context: context
-            )
-            self.transcriptService = transcriptService
-            await transcriptService.appendLog("— Recording started —")
+            // 5) Пишем в лог
+            print("— Recording started —")
             
             // 6) Создаем и запускаем TranscriptionManager
             let manager = TranscriptionManager(
