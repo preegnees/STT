@@ -18,36 +18,6 @@
             endingLineNumber = "57"
             landmarkName = "start(note:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "5ECAAFC2-7E77-47F6-9C6C-6514A3984495 - c2f25594cbd6c7ac"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for closure #1 () async -&gt; () in AI_NOTE.RecordViewModel.start(note: AI_NOTE.Note) -&gt; ()"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/ViewModels/RecordViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "57"
-                  endingLineNumber = "57">
-               </Location>
-               <Location
-                  uuid = "5ECAAFC2-7E77-47F6-9C6C-6514A3984495 - 28b01dc159aa33a2"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(7) suspend resume partial function for closure #1 () async -&gt; () in AI_NOTE.RecordViewModel.start(note: AI_NOTE.Note) -&gt; ()"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/ViewModels/RecordViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "57"
-                  endingLineNumber = "57">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -64,36 +34,6 @@
             endingLineNumber = "10"
             landmarkName = "init(_:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "D2ACF538-3E03-45FC-9E26-F00311C51D54 - 2aa2a53c8272df16"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "10"
-                  endingLineNumber = "10">
-               </Location>
-               <Location
-                  uuid = "D2ACF538-3E03-45FC-9E26-F00311C51D54 - 2aa2a53c8272df16"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "10"
-                  endingLineNumber = "10">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -126,64 +66,6 @@
             endingLineNumber = "19"
             landmarkName = "init(_:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "0F839076-8F4B-424E-A66A-CD399F2E924B - 2aa2a53c8272de7f"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "19"
-                  endingLineNumber = "19">
-               </Location>
-               <Location
-                  uuid = "0F839076-8F4B-424E-A66A-CD399F2E924B - fb832f49249b9a7d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "19"
-                  endingLineNumber = "19">
-               </Location>
-               <Location
-                  uuid = "0F839076-8F4B-424E-A66A-CD399F2E924B - cce3b1674fc1267b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(5) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "19"
-                  endingLineNumber = "19">
-               </Location>
-               <Location
-                  uuid = "0F839076-8F4B-424E-A66A-CD399F2E924B - cce3b1674fc1267b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(5) suspend resume partial function for AI_NOTE.Transcriber.init(AI_NOTE.Settings) async throws -&gt; AI_NOTE.Transcriber"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Recording/Services/Transcribe/Transcriber.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "19"
-                  endingLineNumber = "19">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

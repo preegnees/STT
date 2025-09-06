@@ -5,6 +5,7 @@ enum Tab: Int { case editor, summary, transcript }
 
 struct DetailsView: View {
     @State private var selectedTab: Tab = .editor
+    @State private var transcriptText: String = "Транскрипт пока пуст"
     @EnvironmentObject var svm: SidebarViewModel
     
     private var bindingTitle: Binding<String> {
@@ -36,14 +37,18 @@ struct DetailsView: View {
     }
     
     // Получаем весь транскрипт из всех записей заметки
-    private var transcriptText: String {
-        guard let note = svm.selectedNote else { return "Нет выбранной заметки" }
+    private func updateTranscriptText() {
+        guard let note = svm.selectedNote else {
+            transcriptText = "Нет выбранной заметки"
+            return
+        }
         
         let recordings = note.recordings?.allObjects as? [Recording] ?? []
         let activeRecordings = recordings.filter { $0.statusEnum != .failed }
         
         if activeRecordings.isEmpty {
-            return "Нет записей для этой заметки"
+            transcriptText = "Нет записей для этой заметки"
+            return
         }
         
         var fullTranscript = ""
@@ -55,15 +60,9 @@ struct DetailsView: View {
                 fullTranscript += "🎤 Микрофон:\n"
                 fullTranscript += micText + "\n\n"
             }
-            
-//            // Системный транскрипт
-//            if let sysTranscript = recording.systemTranscript, !sysTranscript.fullText.isEmpty {
-//                fullTranscript += "🔊 Системный звук:\n"
-//                fullTranscript += sysTranscript.fullText + "\n\n"
-//            }
         }
         
-        return fullTranscript.isEmpty ? "Транскрипт пока пуст" : fullTranscript
+        transcriptText = fullTranscript.isEmpty ? "Транскрипт пока пуст" : fullTranscript
     }
 
     var body: some View {
@@ -169,6 +168,18 @@ struct DetailsView: View {
             }
         }
         .navigationTitle("")
+        .onAppear {
+            updateTranscriptText()
+        }
+        .onChange(of: svm.selectedNote) { _ in
+            updateTranscriptText()
+        }
+        .onReceive(Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()) { _ in
+            // Обновляем транскрипт каждые 2 секунды при активной записи
+            if selectedTab == .transcript {
+                updateTranscriptText()
+            }
+        }
     }
 }
 
