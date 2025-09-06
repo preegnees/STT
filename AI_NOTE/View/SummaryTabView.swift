@@ -23,6 +23,12 @@ struct SummaryTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Принудительно обновляем UI при изменениях в Core Data
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                summaryVM.refreshStatus()
+            }
+        }
     }
 }
 
@@ -105,6 +111,10 @@ private struct ReadySummaryView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+//            // Добавьте для отладки:
+//            Text("Debug: Summary = '\(summary)'")
+//                .font(.caption)
+//                .foregroundColor(.red)
             HStack {
                 Text("Саммари")
                     .font(.title2)

@@ -5,19 +5,19 @@ import CryptoKit
 // MARK: - API Models
 struct SummaryRequest: Codable {
     let transcript: String
-    let systemPrompt: String?
-    let model: String?
-    let provider: String?
-    let as_json: Bool?
-    let temperature: Double?
-    let top_p: Double?
-    let max_tokens: Int?
+//    let systemPrompt: String?
+//    let model: String?
+//    let provider: String?
+//    let as_json: Bool?
+//    let temperature: Double?
+//    let top_p: Double?
+//    let max_tokens: Int?
     
-    enum CodingKeys: String, CodingKey {
-        case transcript, systemPrompt, model, provider
-        case as_json = "as_json"
-        case temperature, top_p, max_tokens
-    }
+//    enum CodingKeys: String, CodingKey {
+//        case transcript, systemPrompt, model, provider
+//        case as_json = "as_json"
+//        case temperature, top_p, max_tokens
+//    }
 }
 
 struct SummaryResponse: Codable {
@@ -76,21 +76,25 @@ class SummaryService {
             // 5. Готовим запрос
             let request = SummaryRequest(
                 transcript: fullTranscript,
-                systemPrompt: "Создай краткое саммари этого транскрипта на русском языке. Выдели ключевые моменты и основные темы.",
-                model: "gpt-4",
-                provider: "openai",
-                as_json: false,
-                temperature: 0.3,
-                top_p: nil,
-                max_tokens: 1000
+//                systemPrompt: "Создай краткое саммари этого транскрипта на русском языке. Выдели ключевые моменты и основные темы.",
+//                model: "gpt-4",
+//                provider: "openai",
+//                as_json: false,
+//                temperature: 0.3,
+//                top_p: nil,
+//                max_tokens: 1000
             )
             
             // 6. Отправляем запрос
             let response = try await sendSummaryRequest(request)
+    
+            print("📝 Received summary: \(response.summary)")
+            print("📝 Summary length: \(response.summary.count)")
             
             // 7. Сохраняем результат
             await MainActor.run {
                 note.summary = response.summary
+                print("📝 Assigned to note.summary: \(note.summary ?? "nil")")
                 note.summaryStatus = Note.SummaryStatus.ready.rawValue
                 note.summaryInputsHash = inputsHash
                 note.summaryUpdatedAt = Date()
@@ -135,7 +139,7 @@ class SummaryService {
             return fullTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         
-        for recording in recordings.filter({ $0.statusEnum == .done }) {
+        for recording in recordings { // Без фильтров, наверное?
             // Микрофонный транскрипт
             if let micTranscript = recording.micTranscript,
                let micText = micTranscript.fullText, !micText.isEmpty {
