@@ -1,10 +1,10 @@
 import SwiftUI
+import CoreData
 
 enum Tab: Int { case editor, summary, transcript }
 
 struct DetailsView: View {
     @State private var selectedTab: Tab = .editor
-    @State private var noteText = "Основной текст заметки..."
     @EnvironmentObject var svm: SidebarViewModel
     
     private var bindingTitle: Binding<String> {
@@ -19,7 +19,6 @@ struct DetailsView: View {
                 }
             }
         )
-
     }
     
     private var bindingContent: Binding<String> {
@@ -34,7 +33,37 @@ struct DetailsView: View {
                 }
             }
         )
-
+    }
+    
+    // Получаем весь транскрипт из всех записей заметки
+    private var transcriptText: String {
+        guard let note = svm.selectedNote else { return "Нет выбранной заметки" }
+        
+        let recordings = note.recordings?.allObjects as? [Recording] ?? []
+        let activeRecordings = recordings.filter { $0.statusEnum != .failed }
+        
+        if activeRecordings.isEmpty {
+            return "Нет записей для этой заметки"
+        }
+        
+        var fullTranscript = ""
+        
+        for recording in activeRecordings {
+            // Микрофонный транскрипт
+            if let micTranscript = recording.micTranscript,
+               let micText = micTranscript.fullText, !micText.isEmpty {
+                fullTranscript += "🎤 Микрофон:\n"
+                fullTranscript += micText + "\n\n"
+            }
+            
+//            // Системный транскрипт
+//            if let sysTranscript = recording.systemTranscript, !sysTranscript.fullText.isEmpty {
+//                fullTranscript += "🔊 Системный звук:\n"
+//                fullTranscript += sysTranscript.fullText + "\n\n"
+//            }
+        }
+        
+        return fullTranscript.isEmpty ? "Транскрипт пока пуст" : fullTranscript
     }
 
     var body: some View {
@@ -102,21 +131,38 @@ struct DetailsView: View {
                         Text("Пока саммари нет")
                             .foregroundStyle(.secondary)
                         Button("Сделать саммари") {
-
+                            // TODO: Implement summary generation
                         }
                         .buttonStyle(.borderedProminent)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
                 case .transcript:
-                    ScrollView {
-                        Text("Траскрипт")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(.gray.opacity(0.1))
-                            )
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text(transcriptText)
+                                    .font(.body)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color(NSColor.textBackgroundColor))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                            )
+                                    )
+                                    .id("transcriptContent")
+                            }
                             .padding()
+                        }
+                        .onChange(of: transcriptText) { _ in
+                            // Автоскролл к низу при обновлении транскрипта
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                proxy.scrollTo("transcriptContent", anchor: .bottom)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
