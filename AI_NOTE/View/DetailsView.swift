@@ -7,6 +7,11 @@ struct DetailsView: View {
     @State private var selectedTab: Tab = .editor
     @State private var transcriptText: String = "Транскрипт пока пуст"
     @EnvironmentObject var svm: SidebarViewModel
+    @StateObject private var summaryVM: SummaryViewModel
+    
+    init() {
+        _summaryVM = StateObject(wrappedValue: SummaryViewModel(context: PersistenceController.shared.container.viewContext))
+    }
     
     private var bindingTitle: Binding<String> {
         Binding (
@@ -61,7 +66,7 @@ struct DetailsView: View {
                 fullTranscript += micText + "\n\n"
             }
             
-            // 🆕 НОВОЕ: Системный транскрипт
+            // Системный транскрипт
             if let sysTranscript = recording.systemTranscript,
                let sysText = sysTranscript.fullText, !sysText.isEmpty {
                 fullTranscript += "🔊 Системный звук:\n"
@@ -74,105 +79,13 @@ struct DetailsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                TextField("Название заметки", text: bindingTitle)
-                    .font(.title3)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal)
-                
-                Spacer()
-                
-                Button { selectedTab = .editor } label: {
-                    Image(systemName: "square.and.pencil")
-                        .symbolVariant(selectedTab == .editor ? .fill : .none)
-                        .foregroundStyle(selectedTab == .editor ? .primary : .secondary)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedTab == .editor ? Color.accentColor.opacity(0.12) : .clear)
-                        )
-                }
-                .buttonStyle(.plain)
-                .help("Редактор")
-                
-                Button { selectedTab = .summary } label: {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .symbolVariant(selectedTab == .summary ? .fill : .none)
-                        .foregroundStyle(selectedTab == .summary ? .primary : .secondary)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedTab == .summary ? Color.accentColor.opacity(0.12) : .clear)
-                        )
-                }
-                .buttonStyle(.plain)
-                .help("Саммари")
-                
-                Button { selectedTab = .transcript } label: {
-                    Image(systemName: "captions.bubble")
-                        .symbolVariant(selectedTab == .transcript ? .fill : .none)
-                        .foregroundStyle(selectedTab == .transcript ? .primary : .secondary)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedTab == .transcript ? Color.accentColor.opacity(0.12) : .clear)
-                        )
-                }
-                .buttonStyle(.plain)
-                .help("Транскрипт")
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 8)
+            // Header с табами
+            headerView
             
             Divider()
             
-            Group {
-                switch selectedTab {
-                case .editor:
-                    TextEditor(text: bindingContent)
-                        .font(.body)
-                        
-                case .summary:
-                    VStack(spacing: 12) {
-                        Text("Пока саммари нет")
-                            .foregroundStyle(.secondary)
-                        Button("Сделать саммари") {
-                            // TODO: Implement summary generation
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    
-                case .transcript:
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text(transcriptText)
-                                    .font(.body)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(16)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(NSColor.textBackgroundColor))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                            )
-                                    )
-                                    .id("transcriptContent")
-                            }
-                            .padding()
-                        }
-                        .onChange(of: transcriptText) { _ in
-                            // Автоскролл к низу при обновлении транскрипта
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                proxy.scrollTo("transcriptContent", anchor: .bottom)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
+            // Содержимое вкладок
+            tabContentView
         }
         .navigationTitle("")
         .onAppear {
@@ -187,6 +100,124 @@ struct DetailsView: View {
                 updateTranscriptText()
             }
         }
+    }
+    
+    // MARK: - Subviews
+    
+    private var headerView: some View {
+        HStack(spacing: 10) {
+            TextField("Название заметки", text: bindingTitle)
+                .font(.title3)
+                .textFieldStyle(.plain)
+                .padding(.horizontal)
+            
+            Spacer()
+            
+            tabButtons
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
+    }
+    
+    private var tabButtons: some View {
+        HStack(spacing: 8) {
+            TabButton(
+                tab: .editor,
+                selectedTab: $selectedTab,
+                systemName: "square.and.pencil",
+                help: "Редактор"
+            )
+            
+            TabButton(
+                tab: .summary,
+                selectedTab: $selectedTab,
+                systemName: "doc.text.magnifyingglass",
+                help: "Саммари"
+            )
+            
+            TabButton(
+                tab: .transcript,
+                selectedTab: $selectedTab,
+                systemName: "captions.bubble",
+                help: "Транскрипт"
+            )
+        }
+    }
+    
+    @ViewBuilder
+    private var tabContentView: some View {
+        switch selectedTab {
+        case .editor:
+            TextEditor(text: bindingContent)
+                .font(.body)
+                
+        case .summary:
+            SummaryTabView()
+                .environmentObject(summaryVM)
+                
+        case .transcript:
+            transcriptView
+        }
+    }
+    
+    private var transcriptView: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(transcriptText)
+                        .font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(NSColor.textBackgroundColor))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                        )
+                        .id("transcriptContent")
+                }
+                .padding()
+            }
+            .onChange(of: transcriptText) { _ in
+                // Автоскролл к низу при обновлении транскрипта
+                withAnimation(.easeOut(duration: 0.3)) {
+                    proxy.scrollTo("transcriptContent", anchor: .bottom)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - TabButton
+
+private struct TabButton: View {
+    let tab: Tab
+    @Binding var selectedTab: Tab
+    let systemName: String
+    let help: String
+    
+    private var isSelected: Bool {
+        selectedTab == tab
+    }
+    
+    var body: some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            Image(systemName: systemName)
+                .symbolVariant(isSelected ? .fill : .none)
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .padding(6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? Color.accentColor.opacity(0.12) : .clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 }
 
