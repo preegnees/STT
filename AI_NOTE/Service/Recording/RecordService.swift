@@ -195,8 +195,6 @@ class RecordService {
     private func cleanupState() {
         micRecorder = nil
         transcriber = nil
-        transcriptionManager = nil
-        transcriptService = nil
         sessionPaths = nil
         recordingID = nil
     }
