@@ -38,11 +38,15 @@ final class SidebarViewModel: NSObject, ObservableObject {
         do {
             try frc.performFetch()
             self.notes = frc.fetchedObjects ?? []
+            if notes.isEmpty {
+                newNote()
+            }
         } catch {
             print("FRC fetch error:", error)
             self.notes = []
+            selectedNote = nil
         }
-        selectedNote = notes[0]
+        
     }
     
     func newNote(title: String = "Без названия") {
