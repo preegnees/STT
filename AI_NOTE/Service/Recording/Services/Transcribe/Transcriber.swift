@@ -6,7 +6,7 @@ actor Transcriber {
     private let options: DecodingOptions
 
     init(_ settings: Settings) async throws {
-        var cfg = WhisperKitConfig()
+        let cfg = WhisperKitConfig()
         if let m = settings.modelWhisper { cfg.model = m }
 
         if #available(macOS 13.0, *) {
