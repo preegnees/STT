@@ -34,13 +34,15 @@ enum RecordStatus {
 final class RecordViewModel: ObservableObject {
     @Published var status: RecordStatus = .idle
     @Published var errorText: String?
+    private var settings: Settings
 
     private let service: RecordService
     private let container: NSPersistentContainer
 
-    init() {
+    init(setting: Settings) {
         self.container = PersistenceController.shared.container
         self.service = RecordService(container: container)
+        self.settings = setting
     }
 
     func start(note: Note) {
@@ -49,7 +51,7 @@ final class RecordViewModel: ObservableObject {
 
         Task {
             do {
-                try await service.startRecording(note: note)
+                try await service.startRecording(note: note, settings: self.settings)
                 /// MainActor.run нужен для обновление published параметров из другого потока
                 await MainActor.run { self.status = .recording }
             } catch {

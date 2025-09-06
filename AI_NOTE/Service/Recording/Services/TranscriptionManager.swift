@@ -12,6 +12,8 @@ actor TranscriptionManager {
     // Очередь и флаги работы
     private var queue: [(URL, Int)] = []
     private var isRunning = false
+    private var shouldStop = false // ← ДОБАВЛЕНО: флаг для остановки
+    private let onComplete: (() -> Void)?
 
     // Анти-дубли: индексы уже поставленные в очередь и уже обработанные
     private var enqueuedIdx = Set<Int>()
@@ -20,11 +22,12 @@ actor TranscriptionManager {
     // Последняя записанная строка (анти-дубль «подряд идентичных»)
     private var lastWrittenText: String? = nil
 
-    init(sessionDir: URL, transcript: Transcript, transcriber: Transcriber, context: NSManagedObjectContext) {
+    init(sessionDir: URL, transcript: Transcript, transcriber: Transcriber, context: NSManagedObjectContext, onComplete: @escaping (() -> Void)) {
         self.sessionDir = sessionDir
         self.transcript = transcript
         self.transcriber = transcriber
         self.context = context
+        self.onComplete = onComplete
     }
 
     /// Кладём файл в очередь, если его индекс ещё не обрабатывается и не был обработан
@@ -34,10 +37,19 @@ actor TranscriptionManager {
         queue.append((url, index))
     }
 
+    /// Останавливает цикл обработки
+    func stop() {
+        shouldStop = true
+    }
+
     func run() async {
         guard !isRunning else { return }
         isRunning = true
-        defer { isRunning = false }
+        shouldStop = false
+        defer {
+            isRunning = false
+            print("Transcription worker stopped")
+        }
         print("Transcription worker started")
 
         // Однажды создаём индексатор для папки сессии
@@ -52,7 +64,7 @@ actor TranscriptionManager {
         }
 
         // Главный цикл
-        while true {
+        while !shouldStop { // ← ИСПРАВЛЕНО: добавлено условие выхода
             if let (url, idx) = queue.sorted(by: { $0.1 < $1.1 }).first {
                 // убрать из очереди первую найденную запись с этим URL
                 if let i = queue.firstIndex(where: { $0.0 == url }) { queue.remove(at: i) }
@@ -61,7 +73,16 @@ actor TranscriptionManager {
             }
 
             // Пусто — подождать и пересканировать
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            } catch {
+                // Task.sleep может быть отменена
+                break
+            }
+            
+            // Проверяем shouldStop перед сканированием
+            if shouldStop { break }
+            
             for u in indexer.untranscribed() {
                 let idx = SegmentFiles.index(from: u)
                 guard !processedIdx.contains(idx), !enqueuedIdx.contains(idx) else { continue }
@@ -69,6 +90,7 @@ actor TranscriptionManager {
                 queue.append((u, idx))
             }
         }
+        onComplete?()
     }
 
     /// Обработка одного сегмента (pending → processing → done)
@@ -104,7 +126,9 @@ actor TranscriptionManager {
                 let startMs = Int32(max(0.0, Double(index - 1) * chunkSec) * 1000)
                 let endMs = Int32((Double(index - 1) * chunkSec + chunkSec) * 1000)
                 
-                // Сохраняем в БД
+                // Сохраняем в БД - ИСПРАВЛЕНО: убрана лишняя проверка source
+                let source: TranscriptSegment.Source = sessionDir.lastPathComponent == "mic" ? .mic : .system
+                
                 await transcript.addSegment(
                     text: printable,
                     startMs: startMs,
@@ -112,7 +136,7 @@ actor TranscriptionManager {
                     index: Int32(index),
                     confidence: confidence,
                     context: self.context,
-                    source: processingURL.deletingLastPathComponent().lastPathComponent == SourceName.mic.rawValue ? .mic : .system
+                    source: source
                 )
                 
                 lastWrittenText = printable
@@ -131,13 +155,15 @@ actor TranscriptionManager {
             try? fm.removeItem(at: deletingURL)              // идемпотентно
 
         } catch {
-            fputs("Transcribe error: \(error)\n", stderr)
+            print("Transcribe error for segment \(index): \(error.localizedDescription)") // ← ИСПРАВЛЕНО: используем print вместо fputs
             // Возврат в pending, если .processing ещё существует
             if fm.fileExists(atPath: processingURL.path) {
                 let backURL = URL(fileURLWithPath: processingURL.path
                     .replacingOccurrences(of: ".processing.", with: ".pending."))
                 try? fm.moveItem(at: processingURL, to: backURL)
             }
+            // ДОБАВЛЕНО: убираем индекс из enqueuedIdx при ошибке, чтобы можно было повторить
+            enqueuedIdx.remove(index)
         }
     }
 }

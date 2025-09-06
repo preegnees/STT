@@ -19,6 +19,9 @@ class RecordService {
     private var sysTranscriptionManager: TranscriptionManager?
     private var micTranscriptionManager: TranscriptionManager?
     
+    private var activeManagers = Set<String>()
+    private var completedManagers = Set<String>()
+    
     // ID записи в БД для отката
     private var recordingID: NSManagedObjectID?
     
@@ -58,23 +61,28 @@ class RecordService {
                 sessionDir: paths.mic,
                 transcript: micTranscript,
                 transcriber: transcriber,
-                context: context
+                context: context,
+                onComplete: { [weak self] in
+                    Task { await self?.checkTranscriptionComplete(source: SourceName.mic.rawValue) }
+                }
             )
+            activeManagers.insert(SourceName.mic.rawValue)
 
             // System manager
             let sysManager = TranscriptionManager(
                 sessionDir: paths.system,
                 transcript: sysTranscript,
                 transcriber: transcriber,
-                context: context
+                context: context,
+                onComplete: { [weak self] in
+                    Task { await self?.checkTranscriptionComplete(source: SourceName.system.rawValue) }
+                }
             )
 
             self.micTranscriptionManager = micManager
             self.sysTranscriptionManager = sysManager
             
-            Task.detached {
-                await self.micTranscriptionManager?.run()
-            }
+            Task.detached { await micManager.run() }
             
             /// Мок для системного запуска
 //            Task.detached {
@@ -103,6 +111,7 @@ class RecordService {
         }
     }
     
+    // Также обновим метод stopRecording для использования cleanupState:
     public func stopRecording() async throws {
         guard sessionPaths != nil else {
             throw ServiceError.notRunning
@@ -119,15 +128,16 @@ class RecordService {
             if let start = recording.startedAt {
                 recording.durationSec = now.timeIntervalSince(start)
             }
-            recording.statusEnum = .done
+            recording.statusEnum = .processing
         }
         
         try context.save()
         
-        // Записываем в лог
-        await transcriptService?.appendLog("— Recording stopped —")
+        print("— Recording stopped —")
         
-        // Очищаем состояние
+        // Очищаем состояние сервиса
+        // ВАЖНО: файлы сессии НЕ удаляем, так как TranscriptionManager
+        // может еще дообрабатывать последние сегменты в фоне
         cleanupState()
     }
     
@@ -165,38 +175,83 @@ class RecordService {
         try ctx.save()
         return (recording.objectID, micTranscript, sysTranscript)
     }
-
-    private func deleteRecords(_ ids: [NSManagedObjectID]) throws {
-        for id in ids {
-            if let obj = try? context.existingObject(with: id) {
-                context.delete(obj)
-            }
-        }
-        try context.save()
-    }
     
+    // MARK: - Private Methods
+
     private func rollbackOnError() async {
-        // Останавливаем рекордер если запустился
+        print("🔄 Rolling back recording session...")
+        
+        // 1) Останавливаем активные процессы
         micRecorder?.stop()
         
-        // Удаляем записи из БД
+        // 2) Удаляем записи из базы данных
         if let recordingID = recordingID {
-            try? deleteRecords([recordingID])
+            do {
+                if let recording = try? context.existingObject(with: recordingID) as? Recording {
+                    context.delete(recording)
+                    try context.save()
+                    print("🗑️ Database records rolled back")
+                }
+            } catch {
+                print("⚠️ Failed to rollback database: \(error.localizedDescription)")
+                context.rollback()
+            }
         }
         
-        // Удаляем папку сессии
+        // 3) Удаляем папку сессии
         if let paths = sessionPaths {
-            SessionFS.removeSessionFolder(paths)
+            do {
+                if FileManager.default.fileExists(atPath: paths.root.path) {
+                    try FileManager.default.removeItem(at: paths.root)
+                    print("🗑️ Session folder removed: \(paths.root.lastPathComponent)")
+                }
+            } catch {
+                print("⚠️ Failed to remove session folder: \(error.localizedDescription)")
+            }
         }
         
+        // 4) Очищаем состояние
         cleanupState()
+        print("✅ Recording service state cleaned up")
     }
-    
+
     private func cleanupState() {
         micRecorder = nil
+        
+        // Останавливаем TranscriptionManager'ы
+        Task { await micTranscriptionManager?.stop() }
+        Task { await sysTranscriptionManager?.stop() }
+        
+        micTranscriptionManager = nil
+        sysTranscriptionManager = nil
         transcriber = nil
         sessionPaths = nil
         recordingID = nil
+        
+        completedManagers.removeAll()
+        activeManagers.removeAll()
+    }
+    
+    private func checkTranscriptionComplete(source: String) async {
+        guard activeManagers.contains(source) else { return }
+        
+        completedManagers.insert(source)
+        
+        // Проверяем: все ли активные менеджеры завершились
+        if completedManagers == activeManagers {
+            await markRecordingComplete()
+            completedManagers.removeAll()
+            activeManagers.removeAll()
+        }
+    }
+
+    private func markRecordingComplete() async {
+        guard let recordingID = recordingID,
+              let recording = try? context.existingObject(with: recordingID) as? Recording else { return }
+        
+        recording.statusEnum = .done
+        try? context.save()
+        print("✅ Recording fully completed")
     }
 }
 
