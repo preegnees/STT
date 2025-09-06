@@ -53,7 +53,7 @@ final class RecordViewModel: ObservableObject {
 //                let settings = try await getOrCreateSettings()
                 let settings = Settings(context: container.viewContext)
                 settings.language = "ru"
-                settings.modelWhisper = "large-v3"
+                settings.modelWhisper = "openai_whisper-large-v3-v20240930_turbo"
                 try await service.startRecording(note: note, settings: settings)
                 await MainActor.run { self.status = .recording }
             } catch {

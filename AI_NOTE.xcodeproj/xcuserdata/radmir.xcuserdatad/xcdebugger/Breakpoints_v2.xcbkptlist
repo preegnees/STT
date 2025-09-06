@@ -82,36 +82,6 @@
             endingLineNumber = "134"
             landmarkName = "collectTranscript(from:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "BCA97488-BF1F-4F0D-A684-68685BC46E66 - ecf678535444f1f4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AI_NOTE.SummaryService.collectTranscript(from: AI_NOTE.Note) -&gt; Swift.String"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Sammary/SummaryService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "134"
-                  endingLineNumber = "134">
-               </Location>
-               <Location
-                  uuid = "BCA97488-BF1F-4F0D-A684-68685BC46E66 - ecf678535444f1f4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AI_NOTE.SummaryService.collectTranscript(from: AI_NOTE.Note) -&gt; Swift.String"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Sammary/SummaryService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "134"
-                  endingLineNumber = "134">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -128,36 +98,6 @@
             endingLineNumber = "142"
             landmarkName = "collectTranscript(from:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "F311E268-6C4C-48D6-BA4B-EAE8D6DECF2F - ecf678535444f6ec"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AI_NOTE.SummaryService.collectTranscript(from: AI_NOTE.Note) -&gt; Swift.String"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Sammary/SummaryService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "142"
-                  endingLineNumber = "142">
-               </Location>
-               <Location
-                  uuid = "F311E268-6C4C-48D6-BA4B-EAE8D6DECF2F - ecf678535444f6ec"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AI_NOTE.SummaryService.collectTranscript(from: AI_NOTE.Note) -&gt; Swift.String"
-                  moduleName = "AI_NOTE.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/radmir/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D0%BB%D0%B8%D1%89%D0%B5/STT/AI_NOTE/AI_NOTE/Service/Sammary/SummaryService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "142"
-                  endingLineNumber = "142">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

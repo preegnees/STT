@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B950ACC82E69AB8600DB78EF /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = B950ACC72E69AB8600DB78EF /* WhisperKit */; };
+		B9C78C3F2E6C9AA300FE41EC /* Summa.icns in Resources */ = {isa = PBXBuildFile; fileRef = B9C78C3E2E6C9AA300FE41EC /* Summa.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 		B92E25B72E683940003E88A4 /* AI_NOTE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AI_NOTE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B92E25CA2E683941003E88A4 /* AI_NOTETests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AI_NOTETests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B92E25D42E683941003E88A4 /* AI_NOTEUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AI_NOTEUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9C78C3E2E6C9AA300FE41EC /* Summa.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Summa.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -80,6 +82,7 @@
 		B92E25AE2E683940003E88A4 = {
 			isa = PBXGroup;
 			children = (
+				B9C78C3E2E6C9AA300FE41EC /* Summa.icns */,
 				B92E25B92E683940003E88A4 /* AI_NOTE */,
 				B92E25CD2E683941003E88A4 /* AI_NOTETests */,
 				B92E25D72E683941003E88A4 /* AI_NOTEUITests */,
@@ -221,6 +224,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9C78C3F2E6C9AA300FE41EC /* Summa.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -401,6 +405,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AI_NOTE/AI_NOTE.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -428,6 +433,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = AI_NOTE/AI_NOTE.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
