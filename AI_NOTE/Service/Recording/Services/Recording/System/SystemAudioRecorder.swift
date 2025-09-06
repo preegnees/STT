@@ -6,39 +6,40 @@ import CoreMedia
 @available(macOS 13.0, *)
 final class SystemAudioRecorder: NSObject {
     private var systemTap: SystemAudioTap?
-    private var audioFile: AVAudioFile?
     private var timer: DispatchSourceTimer?
+    private let bufferQueue = DispatchQueue(label: "SystemAudioRecorder.bufferQueue", qos: .userInitiated)
     
     private var segmentIndex: Int = 0
     private var dirURL: URL!
+    private var accumulatedSamples: [Float] = []
     
     private let chunkSeconds: Double
     private let onSegment: (URL, Int) -> Void
+    private let targetSampleRate: Double = 44100.0
     
-    // Формат записи
-    private let recordFormat: AVAudioFormat
+    // Конвертер для преобразования буферов в Float32
+    private var converter: AVAudioConverter?
+    private var lastInputFormat: AVAudioFormat?
+    private let targetFormat: AVAudioFormat
     
     init(targetSampleRate: Double, chunkSeconds: Double, onSegment: @escaping (URL, Int) -> Void) throws {
         self.chunkSeconds = chunkSeconds
         self.onSegment = onSegment
         
-        // WAV: Linear PCM, 16-bit, mono, 44.1 kHz
-        guard let format = AVAudioFormat(commonFormat: .pcmFormatInt16,
-                                        sampleRate: 44100,
+        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                        sampleRate: self.targetSampleRate,
                                         channels: 1,
                                         interleaved: false) else {
             throw NSError(domain: "SystemAudioRecorder", code: 1)
         }
-        self.recordFormat = format
+        self.targetFormat = format
         super.init()
     }
     
     func start(into dir: URL) throws {
         self.dirURL = dir
         segmentIndex = 1
-        
-        // Стартуем первый сегмент
-        try startNewSegment()
+        accumulatedSamples.removeAll()
         
         let tap = SystemAudioTap()
         self.systemTap = tap
@@ -47,10 +48,10 @@ final class SystemAudioRecorder: NSObject {
             self?.processBuffer(buffer)
         }
         
-        // Таймер ротации сегментов
-        let t = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
-        t.schedule(deadline: .now() + chunkSeconds, repeating: chunkSeconds, leeway: .milliseconds(5))
-        t.setEventHandler { [weak self] in self?.rotateSegment() }
+        // Таймер для сохранения сегментов
+        let t = DispatchSource.makeTimerSource(queue: bufferQueue)
+        t.schedule(deadline: .now() + chunkSeconds, repeating: chunkSeconds, leeway: .milliseconds(10))
+        t.setEventHandler { [weak self] in self?.saveAccumulatedSamples() }
         t.resume()
         self.timer = t
         
@@ -64,10 +65,12 @@ final class SystemAudioRecorder: NSObject {
         systemTap?.stop()
         systemTap = nil
         
-        if let _ = audioFile {
-            finalizeSegment(index: segmentIndex)
+        // Сохраняем последние накопленные сэмплы
+        bufferQueue.sync {
+            if !accumulatedSamples.isEmpty {
+                saveAccumulatedSamples()
+            }
         }
-        audioFile = nil
         
         print("System audio recording stopped.")
     }
@@ -75,74 +78,95 @@ final class SystemAudioRecorder: NSObject {
     // MARK: - Private
     
     private func processBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let audioFile = audioFile else { return }
-        
-        // Конвертируем buffer в нужный формат, если требуется
-        if buffer.format.isEqual(recordFormat) {
-            try? audioFile.write(from: buffer)
-        } else {
-            // Конвертация через AVAudioConverter
-            guard let converter = AVAudioConverter(from: buffer.format, to: recordFormat) else { return }
+        bufferQueue.async { [weak self] in
+            guard let self = self else { return }
             
-            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * recordFormat.sampleRate / buffer.format.sampleRate) + 1024
-            guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: recordFormat, frameCapacity: capacity) else { return }
-            
-            var error: NSError?
-            let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
-                outStatus.pointee = .haveData
-                return buffer
-            }
-            
-            converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
-            if error == nil {
-                try? audioFile.write(from: convertedBuffer)
-            }
+            // Конвертируем в Float32 моно по образцу SystemChunker
+            let samples = self.convertToFloat32Mono(buffer)
+            self.accumulatedSamples.append(contentsOf: samples)
         }
     }
     
-    private func startNewSegment() throws {
-        let rawName = String(format: "raw_segment_%06d.wav", segmentIndex)
-        let url = dirURL.appendingPathComponent(rawName)
-        try? FileManager.default.removeItem(at: url)
+    private func convertToFloat32Mono(_ buffer: AVAudioPCMBuffer) -> [Float] {
+        guard buffer.frameLength > 0 else { return [] }
         
-        let file = try AVAudioFile(forWriting: url, settings: recordFormat.settings)
-        self.audioFile = file
-        print("System recording → \(url.lastPathComponent)")
-    }
-    
-    private func rotateSegment() {
-        // Закрываем текущий файл
-        if let _ = audioFile {
-            finalizeSegment(index: segmentIndex)
+        // Пересоздаем конвертер если формат входа изменился
+        if lastInputFormat == nil || !buffer.format.isEqual(lastInputFormat!) {
+            converter = AVAudioConverter(from: buffer.format, to: targetFormat)
+            converter?.sampleRateConverterQuality = .max
+            lastInputFormat = buffer.format
         }
         
-        // Запускаем следующий
-        segmentIndex += 1
-        do {
-            try startNewSegment()
-        } catch {
-            print("Failed to start next segment: \(error)")
+        guard let converter = converter else { return [] }
+        
+        // Оценим ёмкость
+        let ratio = targetFormat.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
+        guard let out = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return [] }
+        
+        // Конвертация
+        var error: NSError?
+        let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+            outStatus.pointee = .haveData
+            return buffer
         }
+        
+        converter.convert(to: out, error: &error, withInputFrom: inputBlock)
+        if let e = error {
+            print("Convert error: \(e)")
+            return []
+        }
+        
+        // Извлекаем сэмплы
+        guard out.frameLength > 0, let chan = out.floatChannelData?[0] else { return [] }
+        let count = Int(out.frameLength)
+        return Array(UnsafeBufferPointer(start: chan, count: count))
     }
     
-    private func finalizeSegment(index: Int) {
-        guard let file = audioFile else { return }
+    private func saveAccumulatedSamples() {
+        guard !accumulatedSamples.isEmpty else { return }
         
-        let rawURL = file.url
-        audioFile = nil // Закрываем файл
+        let samples = accumulatedSamples
+        accumulatedSamples.removeAll(keepingCapacity: true)
         
-        let pendingName = String(format: "segment_%06d.pending.wav", index)
-        let pendingURL = dirURL.appendingPathComponent(pendingName)
+        let fileName = String(format: "segment_%06d.pending.wav", segmentIndex)
+        let url = dirURL.appendingPathComponent(fileName)
         
         do {
-            if FileManager.default.fileExists(atPath: pendingURL.path) {
-                try FileManager.default.removeItem(at: pendingURL)
-            }
-            try FileManager.default.moveItem(at: rawURL, to: pendingURL)
-            print("System segment #\(index) → \(pendingURL.lastPathComponent)")
-            onSegment(pendingURL, index)
+            // Используем WavWriter как в рабочем коде
+            try saveFloatSamplesToWAV(samples, to: url, sampleRate: targetSampleRate)
+            print("System segment #\(segmentIndex) → \(fileName)")
+            onSegment(url, segmentIndex)
+            segmentIndex += 1
         } catch {
-            print("Finalize error: \(error)")
+            print("Failed to save segment: \(error)")
         }
+    }
+    
+    private func saveFloatSamplesToWAV(_ samples: [Float], to url: URL, sampleRate: Double) throws {
+        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                        sampleRate: sampleRate,
+                                        channels: 1,
+                                        interleaved: false) else {
+            throw NSError(domain: "SystemAudioRecorder", code: 1)
+        }
+        
+        let frameCount = AVAudioFrameCount(samples.count)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            throw NSError(domain: "SystemAudioRecorder", code: 2)
+        }
+        
+        buffer.frameLength = frameCount
+        guard let floatData = buffer.floatChannelData else {
+            throw NSError(domain: "SystemAudioRecorder", code: 3)
+        }
+        
+        // Копируем сэмплы в буфер
+        samples.withUnsafeBufferPointer { src in
+            floatData[0].update(from: src.baseAddress!, count: samples.count)
+        }
+        
+        let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
+        try audioFile.write(from: buffer)
     }
 }

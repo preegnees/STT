@@ -60,6 +60,13 @@ struct DetailsView: View {
                 fullTranscript += "🎤 Микрофон:\n"
                 fullTranscript += micText + "\n\n"
             }
+            
+            // 🆕 НОВОЕ: Системный транскрипт
+            if let sysTranscript = recording.systemTranscript,
+               let sysText = sysTranscript.fullText, !sysText.isEmpty {
+                fullTranscript += "🔊 Системный звук:\n"
+                fullTranscript += sysText + "\n\n"
+            }
         }
         
         transcriptText = fullTranscript.isEmpty ? "Транскрипт пока пуст" : fullTranscript
