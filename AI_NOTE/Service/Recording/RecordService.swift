@@ -7,6 +7,7 @@
 
 import CoreData
 import Foundation
+import ScreenCaptureKit
 
 class RecordService {
     private let container: NSPersistentContainer
@@ -15,9 +16,12 @@ class RecordService {
     // Состояние записи
     private var sessionPaths: SessionPaths?
     private var transcriber: Transcriber?
+    
     private var micRecorder: MicrophoneRecorder?
-    private var sysTranscriptionManager: TranscriptionManager?
     private var micTranscriptionManager: TranscriptionManager?
+    
+    private var sysRecorder: SystemAudioRecorder?
+    private var sysTranscriptionManager: TranscriptionManager?
     
     private var activeManagers = Set<String>()
     private var completedManagers = Set<String>()
@@ -38,8 +42,12 @@ class RecordService {
                 
         do {
             // 1) Проверяем разрешения
-            // TODO: В будущем добавить сюда системный звук
             try await ensureMicrophonePermission()
+            
+            // Проверяем доступ к системному аудио (macOS 13+)
+            if #available(macOS 13.0, *) {
+                try await ensureSystemAudioPermission()
+            }
             
             // 2) Создаем Whisper
             let transcriber = try await Transcriber(settings)
@@ -78,16 +86,13 @@ class RecordService {
                     Task { await self?.checkTranscriptionComplete(source: SourceName.system.rawValue) }
                 }
             )
+            activeManagers.insert(SourceName.system.rawValue)
 
             self.micTranscriptionManager = micManager
             self.sysTranscriptionManager = sysManager
             
             Task.detached { await micManager.run() }
-            
-            /// Мок для системного запуска
-//            Task.detached {
-//                await self.sysTranscriptionManager?.run()
-//            }
+            Task.detached { await sysManager.run() }
             
             // 7) Создаем и запускаем микрофонный рекордер
             let recorder = try MicrophoneRecorder(
@@ -100,9 +105,17 @@ class RecordService {
             self.micRecorder = recorder
             try recorder.start(into: paths.mic)
 
-            // Тут будет SystemAudio
-//            self.sysRecord =
-//            try recorder.start(into: paths.mic)
+            if #available(macOS 13.0, *) {
+                let sysRecorder = try SystemAudioRecorder(
+                    targetSampleRate: 16000,
+                    chunkSeconds: 10.0,
+                    onSegment: { url, idx in
+                        Task { await sysManager.enqueue(url: url, index: idx) }
+                    }
+                )
+                self.sysRecorder = sysRecorder
+                try sysRecorder.start(into: paths.system)
+            }
         } catch {
             // Откат при ошибке
             // TODO Продолжить завтра
@@ -120,6 +133,10 @@ class RecordService {
         // Останавливаем микрофонный рекордер
         micRecorder?.stop()
         
+        if #available(macOS 13.0, *) {
+            sysRecorder?.stop()
+        }
+
         // Обновляем запись в БД
         let now = Date()
         if let recordingID = recordingID,
@@ -184,6 +201,10 @@ class RecordService {
         // 1) Останавливаем активные процессы
         micRecorder?.stop()
         
+        if #available(macOS 13.0, *) {
+            sysRecorder?.stop()
+        }
+        
         // 2) Удаляем записи из базы данных
         if let recordingID = recordingID {
             do {
@@ -217,6 +238,7 @@ class RecordService {
 
     private func cleanupState() {
         micRecorder = nil
+        sysRecorder = nil
         
         // Останавливаем TranscriptionManager'ы
         Task { await micTranscriptionManager?.stop() }

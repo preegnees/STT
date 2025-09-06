@@ -14,5 +14,9 @@
 	<true/>
 	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
 	<false/>
+	<key>com.apple.security.device.capture</key>
+	<array>
+		<string></string>
+	</array>
 </dict>
 </plist>
